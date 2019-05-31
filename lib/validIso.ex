@@ -62,6 +62,18 @@ defmodule Ale8583.ValidISO do
     do_decode_ascci(bit_map_list, string, iso, [])
   end
 
+  # FIXME?: Trying to decode field 1 (bitmap) breaks everything since the tramas dont have
+  # a 64B string inside them, instead they have the stringified bitmap wich is 16/32 bytes long
+  # This function assumes the trama DOESNT'T have that 64 bytes long string
+  defp do_decode_ascci(
+         [1 | tail],
+         list,
+         iso,
+         acc
+       ) do
+    do_decode_ascci(tail, list, iso, acc)
+  end
+
   defp do_decode_ascci([], _, iso_new, acc) do
     {:ok, acc, iso_new}
   end
