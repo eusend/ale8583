@@ -340,6 +340,82 @@ defmodule Ale8583 do
   end
 
   @doc """
+  Function for get ISO from trama.
+
+  Returns `iso`
+  """
+
+  # def decode(iso_header <> iso_trama, iso_header, conf_file) do
+  #   decode(iso_trama, iso_header, conf_file)
+  # end
+
+  def decode(iso_trama, iso_header, conf_file) do
+    raw_trama =
+      if String.starts_with?(iso_trama, iso_header) do
+        header_len = String.length(iso_header)
+        trama_len = String.length(iso_trama)
+        String.slice(iso_trama, header_len, trama_len - header_len)
+      else
+        iso_trama
+      end
+
+    decode_iso_string_to_iso(raw_trama, iso_header, conf_file)
+  end
+
+  defp decode_iso_string_to_iso(raw_list, iso_header, conf_file) do
+    raw_list = iso_header <> raw_list
+    list_raw = String.to_charlist(raw_list)
+
+    str_head_prosa = list_raw |> Enum.take(12) |> List.to_string()
+    # Logger.debug("Header PROSA : #{str_head_prosa} ")
+    ## MTI
+    str_mti = list_raw |> Enum.slice(12, 4) |> List.to_string()
+    ##  BIT MAP PRIMARY
+    str_bit_map = list_raw |> Enum.slice(16, 16) |> List.to_string()
+    ##  BIT MAP IF TRANSACTION HAS BIT MAP SECONDARY
+
+    str_bit_map =
+      if have_bit_map_sec?(str_bit_map) do
+        list_raw |> Enum.slice(16, 32) |> List.to_string()
+      else
+        str_bit_map
+      end
+
+    ## TAKE FIELDS SINCE FIELD 1.
+
+    header_length =
+      32 +
+        if have_bit_map_sec?(str_bit_map) do
+          # Includes second part of bitmap
+          16
+        else
+          0
+        end
+
+    list_fields = Enum.take(list_raw, header_length - Kernel.length(list_raw))
+
+    ##  ISO MAKES FROM MTI AND CONFIGURATION FILE.
+
+    iso_mti = new({str_mti, conf_file}, iso_header)
+
+    # IO.inspect(%{
+    #   list_raw: list_raw,
+    #   str_head_prosa: str_head_prosa,
+    #   str_mti: str_mti,
+    #   str_bit_map: str_bit_map,
+    #   list_fields: List.to_string(list_fields)
+    # })
+
+    iso_mti = list_to_iso({str_bit_map, list_fields, :prosa, str_head_prosa}, iso_mti)
+
+    # list_iso
+
+    # printAll(iso_mti, "Print fields ISO type #{str_mti}:")
+
+    {:ok, iso_mti}
+  end
+
+  @doc """
 
   Function for get ISO from list(RAW data without length).
 
